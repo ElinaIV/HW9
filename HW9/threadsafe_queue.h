@@ -5,10 +5,10 @@
 #include <mutex>
 #include <queue>
 
-template<typename T>
+template <typename T, typename Container = std::vector<T>, typename Comparator = std::less<T>>
 class Threadsafe_PQueue {
 private:
-	std::priority_queue<T> m_pQueue;
+	std::priority_queue<T, Container, Comparator> m_pQueue;
 	std::condition_variable m_condition_variable;
 	mutable std::mutex m_mutex;
 

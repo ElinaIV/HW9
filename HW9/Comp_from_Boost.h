@@ -81,53 +81,46 @@ public:
 };
 
 template<typename T>
-void add_M_elements(threadsafe_stack<T>& stack, size_t M, std::atomic<bool> flag) {
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<int> dis(0, 100);
-
+void add_M_elements(threadsafe_stack<T>& stack, size_t M, std::atomic<bool>& flag) {
+	while (!flag.load()) {
+		std::this_thread::yield();
+	}
+	
 	for (size_t i = 0; i < M; ++i) {
-		while (!flag.load()) {
-			std::this_thread::yield();
-		}
-		stack.push(dis(gen));
+		stack.push(i);
 	}
 }
 
 template<typename T>
-void pop_M_elements(threadsafe_stack<T>& stack, size_t M, std::atomic<bool> flag) {
+void pop_M_elements(threadsafe_stack<T>& stack, size_t M, std::atomic<bool>& flag) {
+	while (!flag.load()) {
+		std::this_thread::yield();
+	}
+
 	for (size_t i = 0; i < M; ++i) {
-		while (!flag.load()) {
-			std::this_thread::yield();
-		}
 		stack.pop();
 	}
 }
 
-void check(size_t M) {
+void check() {
 	Timer t;
-	std::atomic<bool> flag = false;
+	std::atomic<bool> flag{ false };
 	threadsafe_stack<int> stack;
 	//boost::lockfree::stack<int> stack;
 
-	size_t N = std::thread::hardware_concurrency();
-	std::vector<std::thread> producers(N - 1);
-	std::vector<std::thread> consumers(N - 1);
+	const size_t N = 4;
+	const size_t M = 1000;
+	std::vector<std::thread> producers;
+	std::vector<std::thread> consumers;
 
-	t.restart();
-	for (size_t i = 0; i < N-1; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		producers.push_back(std::thread(add_M_elements<int>, std::ref(stack), M, std::ref(flag)));
-	}
-	t.stop();
-
-	t.restart();
-	for (size_t i = 0; i < N-1; ++i) {
 		consumers.push_back(std::thread(pop_M_elements<int>, std::ref(stack), M, std::ref(flag)));
 	}
-	t.stop();
 
+	t.restart();
 	flag.store(true);
 	std::for_each(producers.begin(), producers.end(), std::mem_fn(&std::thread::join));
 	std::for_each(consumers.begin(), consumers.end(), std::mem_fn(&std::thread::join));
+	t.stop();
 }

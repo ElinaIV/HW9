@@ -117,13 +117,13 @@ void check(size_t M) {
 
 	t.restart();
 	for (size_t i = 0; i < N-1; ++i) {
-		producers.push_back(std::thread(add_M_elements<int>, std::ref(stack), M, flag));
+		producers.push_back(std::thread(add_M_elements<int>, std::ref(stack), M, std::ref(flag)));
 	}
 	t.stop();
 
 	t.restart();
 	for (size_t i = 0; i < N-1; ++i) {
-		consumers.push_back(std::thread(pop_M_elements<int>, std::ref(stack), M, flag));
+		consumers.push_back(std::thread(pop_M_elements<int>, std::ref(stack), M, std::ref(flag)));
 	}
 	t.stop();
 

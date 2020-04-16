@@ -10,8 +10,9 @@
 #include <future>
 
 std::mutex pi_mutex;
+double global = 0;
 
-double calculatePi(long long n) {
+void calculatePi(long long n) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -25,24 +26,18 @@ double calculatePi(long long n) {
 	}
 
 	std::lock_guard<std::mutex> guard(pi_mutex);
-	return 4.0 * inside / n;
+	global += 4.0 * inside / n;
 }
 
 double calculatePiParallel(long long n) {
 	size_t num_threads = std::thread::hardware_concurrency();
 	int block_size = n / num_threads;
 
-	std::vector<std::future<double>> results(num_threads - 1);
-	std::vector<std::thread> threads(num_threads - 1);
-	for (size_t i = 0; i < num_threads - 1; ++i) {
-		std::packaged_task<double(double)> task(calculatePi);
-		results[i] = task.get_future();
-		threads[i] = std::thread(std::move(task), block_size);
+	std::vector<std::thread> threads;
+	for (size_t i = 0; i < num_threads; ++i) {
+		threads.push_back(std::thread(&calculatePi, n));
 	}
 	std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
 
-	auto result = calculatePi(n);
-	std::for_each(results.begin(), results.end(), [&result](auto& i) { result += i.get(); });
-
-	return result / num_threads;
+	return global / num_threads;
 }
